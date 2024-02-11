@@ -1,0 +1,101 @@
+<html>
+	<body style="background-color:black">
+	<!--<canvas id="canvas1" width="992" height="600" >test</canvas>-->
+	<canvas id="canvas1" width="480" height="360" >test</canvas>
+	
+
+	
+	
+	<script>
+	function main()
+	{
+		
+		const canvas = document.getElementById("canvas1");
+		const ctx = canvas.getContext("2d");
+		var oldscr = [];
+		var scr = [];
+		let neighbors = [[0, 1], [1,1], [1,0], [1,-1], [0,-1], [-1,-1], [-1,0], [-1,1]];
+		
+		for(let i = 0; i < canvas.height; i++)
+		{
+			oldscr[i] = [];
+			scr[i] = [];
+			for(let j = 0; j < canvas.width; j++)
+			{
+				if(Math.random() < 0.2)
+					oldscr[i][j] = 1;
+				else
+					oldscr[i][j] = 0;
+				scr[i][j] = 0;
+			}
+		}
+		
+
+		window.gwidth = canvas.width;
+		window.gheight = canvas.height; 
+		window.canvasctx = ctx;
+		window.oldscr = oldscr;
+		window.scr = scr;
+		window.first = 1;
+		window.neighbors = neighbors;
+
+		ctx.fillStyle = "#000000";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+	}
+
+	function calcline()
+	{
+		for(let col = 0; col < window.gheight; col++)
+		{
+			for(let row = 0; row < window.gwidth; row++)
+			{
+				let cnt = 0;
+				for(let neighbor = 0; neighbor < 8; neighbor++)
+				{
+					let curn = window.neighbors[neighbor];
+		
+					if(row == 0 && curn[0] == -1)
+						continue;
+					if((row == window.gwidth - 1) && (curn[0] == 1))
+						continue;
+					
+					if(col == 0 && curn[1] == -1)
+						continue;
+					if((col == window.gheight - 1) && (curn[1] == 1))
+						continue;
+					
+					//valid neighbor to test now
+					cnt += window.oldscr[col + curn[1]][row + curn[0]];
+				}
+				
+				if(cnt == 3)
+				{
+					window.scr[col][row] = 1;
+					window.canvasctx.fillStyle = "#00FF00";
+					window.canvasctx.fillRect(row, col, 1, 1);
+				}
+				else if (cnt != 2)
+				{
+					window.scr[col][row] = 0;
+					window.canvasctx.fillStyle = "#000000";
+					window.canvasctx.fillRect(row, col, 1, 1);
+					
+				}
+			}
+		}
+		
+		for(let col = 0; col < window.gheight; col++)
+			for(let row = 0; row < window.gwidth; row++)
+				window.oldscr[col][row] = window.scr[col][row];
+		
+	}
+
+	window.addEventListener("load", main);
+	setInterval(calcline, 200);
+	</script>
+	
+	
+	</body>
+
+
+</html>
