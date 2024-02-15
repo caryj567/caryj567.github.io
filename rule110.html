@@ -26,9 +26,13 @@
 
 		for(let i = 0; i < canvas.width; i++)
 		{
-			oldrow[i] = 0;
+			if (Math.random() < 0.2)
+				oldrow[i] = 1;
+			else
+				oldrow[i] = 0;
+			//oldrow[i] = 0;
 		}
-		oldrow[canvas.width - 1] = 1;
+		//oldrow[canvas.width - 1] = 1;
 
 		ctx.fillStyle = "#000000";
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
