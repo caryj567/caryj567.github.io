@@ -4,8 +4,8 @@ var myScore;
 
 function startGame() {
     myGamePiece = new gameObj(30, 30, "red", 10, 120);
-    myGamePiece = new gameObj(20, 20, "red", 10, 120);
-    myGamePiece.gravity = 0.05;
+    myGamePiece = new gameObj(20, 20, "blue", 10, 120);
+    myGamePiece.gravity = 0.10;
     myScore = new gameObj("30px", "Consolas", "black", 280, 40, "text");
     myGameArea.start();
 }
