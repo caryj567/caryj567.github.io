@@ -9,11 +9,14 @@ canvas {
 }
 </style>
 </head>
-<body onload="startGame()">
+<!--<body onload="startGame()">-->
+<body>
     
 <script src="canvasgame2.js"></script>
 <br>
-<button onmousedown="accelerate(-0.2)" onmouseup="accelerate(0.05)">ACCELERATE</button>
+<!--<button onmousedown="accelerate(-0.8)" onmouseup="accelerate(0.2)">ACCELERATE</button>-->
+<button onmousedown="startGame()">Start</button>
+<button onmousedown="pause()">Pause</button>
 <p>Use the ACCELERATE button to stay in the air</p>
 <p>How long can you stay alive?</p>
 </body>
