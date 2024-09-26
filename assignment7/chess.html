@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chess</title>
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.0.0/dist/fabric.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      canvas {
+        border: 1px solid #000;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script src="tts.js"></script>
+    <script>
+      // Initialize the Fabric.js canvas
+      const canvas = new fabric.Canvas("canvas");
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      canvas.setWidth(width);
+      canvas.setHeight(height - 100);
+
+      //TODO:
+      //status of pieces
+      //writeup
+
+      const tileWidth = 50;
+      const boardOffset = 50;
+      const boardMax = boardOffset + tileWidth * 8;
+      const pieceCount = 32;
+
+      const pieceImages = [
+        [
+          "r",
+          "https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg",
+        ],
+        [
+          "h",
+          "https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg",
+        ],
+        [
+          "b",
+          "https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg",
+        ],
+        [
+          "q",
+          "https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg",
+        ],
+        [
+          "k",
+          "https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg",
+        ],
+        [
+          "p",
+          "https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg",
+        ],
+        [
+          "R",
+          "https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg",
+        ],
+        [
+          "H",
+          "https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg",
+        ],
+        [
+          "B",
+          "https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg",
+        ],
+        [
+          "Q",
+          "https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg",
+        ],
+        [
+          "K",
+          "https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg",
+        ],
+        [
+          "P",
+          "https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg",
+        ],
+      ];
+
+      var board = [
+        ["r", "h", "b", "q", "k", "b", "h", "r"],
+        ["p", "p", "p", "p", "p", "p", "p", "p"],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["P", "P", "P", "P", "P", "P", "P", "P"],
+        ["R", "H", "B", "Q", "K", "B", "H", "R"],
+      ];
+
+      var pieces = Array(pieceCount);
+
+      //draw the board
+      let toggle = 0;
+      let pieceIdx = 0;
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++, toggle++) {
+          let piece = board[y][x];
+          var fillColor;
+          var pieceStr = "";
+
+          if (toggle % 2) fillColor = "dimgray";
+          else fillColor = "silver";
+
+          //add the board tile
+          const tile = new fabric.Rect({
+            left: boardOffset + x * tileWidth,
+            top: boardOffset + y * tileWidth,
+            fill: fillColor,
+            width: tileWidth,
+            height: tileWidth,
+            selectable: false,
+          });
+          canvas.add(tile);
+
+          if (!piece) continue;
+
+          //add the piece
+          for (let i = 0; i < pieceImages.length; i++) {
+            if (piece == pieceImages[i][0]) {
+              pieceStr = pieceImages[i][1]; //found the piece's image
+            }
+          }
+          fabric.Image.fromURL(pieceStr, function (myImg) {
+            var img1 = myImg.set({
+              left: boardOffset + x * tileWidth,
+              top: boardOffset + y * tileWidth,
+              width: tileWidth,
+              height: tileWidth,
+              selectable: false,
+            });
+            canvas.add(img1);
+            pieces[pieceIdx] = img1; //remember this image for later
+            pieceIdx++; //only increment this on pieces, not spaces
+          });
+        }
+        toggle++;
+      }
+
+      function CheckRook(srcX, srcY, dstX, dstY, delX, delY) {
+        if (delX === 0 && delY !== 0) {
+          //up and down
+          var step = 1;
+          if (delY > 0) step = -1;
+
+          for (let i = srcY + step; i !== dstY; i += step) {
+            if (board[i][srcX] !== "") return false; // hit something
+          }
+        } else if (delX !== 0 && delY === 0) {
+          //side to side
+          var step = 1;
+          if (delX > 0) step = -1;
+
+          for (let i = srcX + step; i !== dstX; i += step) {
+            if (board[srcY][i] !== "") return false; // hit something
+          }
+        } else return false;
+
+        return true;
+      }
+
+      function CheckBishop(srcX, srcY, dstX, dstY, delX, delY) {
+        if (Math.abs(delX) != Math.abs(delY)) return false;
+        var xStep = 1;
+        var yStep = 1;
+        if (delX > 0) xStep = -1;
+        if (delY > 0) yStep = -1;
+
+        for (
+          let x = srcX + xStep, y = srcY + yStep;
+          x != dstX;
+          x += xStep, y += yStep
+        ) {
+          if (board[y][x] !== "") return false; //hit something on the path
+        }
+
+        return true;
+      }
+
+      function UpdatePieces(srcX, srcY, dstX, dstY) {
+        var srcImg;
+        var dstImg;
+        var srcPiece, srcTeam;
+        var dstPiece, dstTeam; //white is true
+        var delX, delY;
+
+        srcPiece = board[srcY][srcX];
+        dstPiece = board[dstY][dstX];
+        srcTeam = srcPiece.toUpperCase() == srcPiece;
+        dstTeam = dstPiece.toUpperCase() == dstPiece;
+        delX = srcX - dstX;
+        delY = srcY - dstY;
+
+        if (dstPiece !== "" && srcTeam === dstTeam) return false; //don't move on allies
+
+        //check collision and movement
+        switch (srcPiece.toUpperCase()) {
+          case "P":
+            var advY; //which direction the pawn can move in
+            if (!srcTeam) advY = -1;
+            else advY = 1;
+
+            if (dstPiece === "") {
+              //no enemy out front
+              if (delX != 0 || delY != advY) return false;
+            } else {
+              if (Math.abs(delX) != 1 || delY != advY) return false; //either not sidestepping or not advancing
+            }
+            break;
+
+          case "R":
+            if (!CheckRook(srcX, srcY, dstX, dstY, delX, delY)) return false;
+            break;
+
+          case "H": //knight
+            if (Math.abs(delX) + Math.abs(delY) != 3 || !(delX * delY))
+              //basically checking if the absolute values are either 1,2 or 2,1
+              return false;
+            break;
+
+          case "B":
+            if (!CheckBishop(srcX, srcY, dstX, dstY, delX, delY)) return false;
+            break;
+
+          case "Q":
+            if (
+              !CheckRook(srcX, srcY, dstX, dstY, delX, delY) &&
+              !CheckBishop(srcX, srcY, dstX, dstY, delX, delY)
+            )
+              return false;
+            break;
+
+          case "K":
+            if (Math.abs(delX) > 1 || Math.abs(delY) > 1) return false;
+            break;
+
+          default:
+            return false;
+        }
+
+        //assuming valid move here
+
+        //update board
+        board[srcY][srcX] = "";
+        board[dstY][dstX] = srcPiece;
+
+        var dstIdx;
+        for (let i = 0; i < pieceCount; i++) {
+          //figure out what images need to move
+          let imgX = Math.floor((pieces[i].left - boardOffset) / tileWidth);
+          let imgY = Math.floor((pieces[i].top - boardOffset) / tileWidth);
+          if (srcX == imgX && srcY == imgY) srcImg = pieces[i];
+          if (dstX == imgX && dstY == imgY) dstIdx = i;
+        }
+
+        srcImg.left = dstX * tileWidth + boardOffset;
+        srcImg.top = dstY * tileWidth + boardOffset;
+        dstImg = pieces[dstIdx];
+
+        if (dstImg) {
+          //remove the image and then clear out its entry in pieces
+          canvas.remove(dstImg);
+          pieces[dstIdx] = 0;
+          UpdateScore();
+
+          if (dstPiece.toUpperCase() == "K") {
+            speakWin(srcPiece === srcPiece.toUpperCase());
+            Restart();
+          } else speakCapture(srcPiece, dstPiece);
+        }
+
+        return true; //go ahead and update the canvas, too
+      }
+
+      function UpdateScore() {
+        var piece = "";
+        let whiteScore = 0;
+        let blackScore = 0;
+
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) {
+            //figure out how much this piece is worth
+
+            switch (board[y][x]) {
+              case "p":
+                blackScore++;
+                break;
+              case "r":
+                blackScore += 5;
+                break;
+              case "h":
+              case "b":
+                blackScore += 3;
+                break;
+              case "q":
+                blackScore += 9;
+                break;
+
+              case "P":
+                whiteScore++;
+                break;
+              case "R":
+                whiteScore += 5;
+                break;
+              case "H":
+              case "B":
+                whiteScore += 3;
+                break;
+              case "Q":
+                whiteScore += 9;
+                break;
+              default:
+                break;
+            }
+          }
+        }
+
+        document.getElementById("WhiteScore").textContent =
+          whiteScore.toString();
+        document.getElementById("BlackScore").textContent =
+          blackScore.toString();
+      }
+
+      let lastSelectedX = -1;
+      let lastSelectedY = -1;
+      let turn = 0;
+
+      document.addEventListener("click", (event) => {
+        //disregard OOB clicks
+        if (
+          event.clientX < boardMax &&
+          event.clientX > boardOffset &&
+          event.clientY < boardMax &&
+          event.clientX > boardOffset
+        ) {
+          //translate from screen coordinates to [0-7] i.e. tile coordinates
+          let tileX = Math.floor((event.clientX - boardOffset) / tileWidth);
+          let tileY = Math.floor((event.clientY - boardOffset) / tileWidth);
+          let piece = board[tileY][tileX];
+
+          if (lastSelectedX != -1) {
+            //-1 is a flag that nothing has been selected on this turn yet
+            if (UpdatePieces(lastSelectedX, lastSelectedY, tileX, tileY)) {
+              //update the positions of pieces and their images
+              canvas.renderAll();
+              lastSelectedX = lastSelectedY = -1; //unselect
+              turn++;
+              console.log(turn);
+              if (!(turn % 2))
+                document.getElementById("Turn").textContent = "White's turn";
+              else document.getElementById("Turn").textContent = "Black's turn";
+            }
+          } else {
+            //start of a new turn
+            //black is trying to move on an even turn
+            if (!(turn % 2) && piece.toUpperCase() != piece) return;
+            //white is trying to move on an odd turn
+            if (turn % 2 && piece.toUpperCase() == piece) return;
+            if (piece === "") return; //dont select an empty tile
+            //save this selection
+            lastSelectedX = tileX;
+            lastSelectedY = tileY;
+          }
+        }
+      });
+
+      function Restart() {
+        setTimeout(function () {
+          window.location.reload();
+        }, 2000);
+      }
+
+      // Adjust canvas size on window resize
+      window.addEventListener("resize", () => {
+        const newWidth = window.innerWidth;
+        const newHeight = window.innerHeight;
+        canvas.setWidth(newWidth);
+        canvas.setHeight(newHeight);
+        canvas.renderAll();
+      });
+    </script>
+    <button onclick="window.location.reload()">Restart</button>
+    <table>
+      <tr>
+        <th>White -</th>
+        <td id="WhiteScore">39</td>
+      </tr>
+      <tr>
+        <th>Black -</th>
+        <td id="BlackScore">39</td>
+      </tr>
+    </table>
+    <p id="Turn">White's Turn</p>
+  </body>
+</html>
