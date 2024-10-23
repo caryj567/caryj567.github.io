@@ -73,8 +73,18 @@
             piece.material = pieceMaterial;
 
             piece.actionManager = new BABYLON.ActionManager(scene);
-            piece.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, () => {
+            
+            //JC - change 'onPickTrigger' to 'OnPickDownTrigger' to prevent the mouse unclick from triggering
+            piece.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, () => {
+            	if(selectedPiece) //JC - don't select another piece
+            		return;
+			
+            	
+            	if(Team(piece) != turn)
+            		return;
+            		
                 selectedPiece = piece;
+                turn = !turn;
             }));
 
             return piece;
@@ -114,17 +124,247 @@
         pieces.push(createPiece("king", new BABYLON.Vector3(0.5, 0.5, -3.5), new BABYLON.Color3(0, 0, 0)));
 
         let selectedPiece = null;
+		let turn = 0;
+
 
         scene.onPointerDown = (evt, pickResult) => {
             if (selectedPiece) {
+            
                 const pickedTile = pickResult.pickedMesh;
                 if (pickedTile && pickedTile.name.startsWith("tile")) {
-                    selectedPiece.position.x = pickedTile.position.x;
-                    selectedPiece.position.z = pickedTile.position.z;
-                    selectedPiece = null;
+
+                	MovePiece(selectedPiece, pickedTile);
                 }
+                
             }
         };
+
+        function DeclareWinner(team)
+        {
+			speakWin(team);
+			
+			if(team == 0 )
+				alert("White wins!");
+			else
+				alert("Black wins!");
+
+        }
+
+		function MovePiece(piece, tile)
+		{
+			var targetPiece = null;
+			var validmove;
+			
+			//See if there is another piece on the tile
+			targetPiece = PieceForPosition(tile.position.x, tile.position.z);
+
+			
+			if(targetPiece && (Team(targetPiece) == Team(piece)))
+				return false; //never move on a friendly
+
+		
+			//See if this is a valid way for the piece to move
+			let delx = piece.position.x - tile.position.x;
+			let delz = piece.position.z - tile.position.z;
+			switch(piece.name)
+			{
+				case "pawn": 	validmove = PawnMove	(piece.position.x, piece.position.z, tile.position.x, tile.position.z, delx, delz, Team(piece), Team(targetPiece)); break;
+				case "rook": 	validmove = RookMove	(piece.position.x, piece.position.z, tile.position.x, tile.position.z, delx, delz); break;
+				case "knight": 	validmove = KnightMove	(piece.position.x, piece.position.z, tile.position.x, tile.position.z, delx, delz); break;
+				case "bishop": 	validmove = BishopMove	(piece.position.x, piece.position.z, tile.position.x, tile.position.z, delx, delz); break;
+				case "queen": 	validmove = QueenMove	(piece.position.x, piece.position.z, tile.position.x, tile.position.z, delx, delz); break;
+				case "king": 	validmove = KingMove	(piece.position.x, piece.position.z, tile.position.x, tile.position.z, delx, delz); break;
+				default:
+				alert("Unknown piece");
+			}
+
+			if(!validmove)
+				return false;
+
+			if(Team(targetPiece) != 2)
+			{//take the enemy piece
+				pieces.forEach(function (otherPiece, index) {
+					if(otherPiece && tile.position.x == otherPiece.position.x && tile.position.z == otherPiece.position.z)
+					{
+						if(otherPiece.name == "king")
+							DeclareWinner(Team(piece));
+						else
+							speakCapture(piece, otherPiece);
+						
+						
+						otherPiece.dispose();//clear the mesh
+						pieces[index] = null; //don't run in to this again
+					}
+				});
+			}
+		
+			console.log("Moving " + piece.name + " to " + tile.position.x + "," + tile.position.z);
+			piece.position.x = tile.position.x;
+			piece.position.z = tile.position.z;
+			selectedPiece = null;
+			return true;
+		}
+
+		//Movement checking functions
+		function PawnMove(x, z, dstx, dstz, dx, dz, team, tTeam)
+		{
+			let advZ = 1; //which direction the pawn can move in
+			if(team) //black
+				advZ = -1;
+				
+			x = Shift(x);
+			z = Shift(z);
+			dstx = Shift(dstx);
+			dstz = Shift(dstz);
+			
+			//console.log("src" + ": " + x,z);
+			//console.log("dst" + ": " + dstx, dstz);
+			//console.log("d" + ": " + dx,dz);
+			//console.log("t" + ": " + team, tTeam)
+
+			if(tTeam == 2 && (dx != 0 || dz != advZ))
+				return false;//space out front but either sidestepping or going the wrong way
+			else if(tTeam != 2 && Math.abs(dx) != 1 || dz != advZ)
+				return false;//enemy out front but not sidestepping or going the wrong way
+			
+			
+			return true;
+		}
+
+		function RookMove(x, z, dstx, dstz, dx, dz)
+		{//sourcex, sourcez, destx, destz, deltax, deltaz
+			x = Shift(x);
+			z = Shift(z);
+			dstx = Shift(dstx);
+			dstz = Shift(dstz);
+			
+			//console.log(x,z);
+			//console.log(dstx, dstz);
+			//console.log(dx,dz);
+
+			if (dx == 0 && dz != 0)
+			{//up & down
+				var step = 1;
+				if(dz > 0)// going down board
+					step = -1;
+
+				for (let i = z + step; i != dstz; i += step)
+				{
+					if(PieceForPosition(x - 3.5, i - 3.5))
+						return false; //hit something
+				}
+			}
+			else if (dx != 0 && dz == 0)
+			{
+				var step = 1;
+				if(dx > 0)//going left
+					step = -1;
+
+				for(let i = x + step; i != dstx; i += step)
+				{
+					console.log(i, z);
+					if(PieceForPosition(i - 3.5, z - 3.5))
+						return false;//hit something
+				}
+			}
+			else 
+				return false; //not perfectly in line
+			
+			return true;
+		}
+
+		function BishopMove(x, z, dstx, dstz, dx, dz)
+		{//sourcex, sourcez, destx, destz, deltax, deltaz
+			let stepx = 1;
+			let stepz = 1;
+			if(dx > 0) //down
+				stepx = -1;
+			if(dz > 0) //left
+				stepz = -1;
+				
+			x = Shift(x);
+			z = Shift(z);
+			dstx = Shift(dstx);
+			dstz = Shift(dstz);
+
+			
+			//console.log(x,z);
+			//console.log(dstx, dstz);
+			//console.log(dx,dz);
+			
+			if(Math.abs(dx) != Math.abs(dz))
+				return false; //not diagonal	
+
+			for(let xi = x + stepx, zi = z + stepz; xi != dstx; xi += stepx, zi += stepz)
+			{
+				console.log(xi,zi);
+				if(PieceForPosition(xi - 3.5, zi - 3.5))
+					return false;//hit something
+			}
+			
+			return true;
+		}
+
+		function KnightMove(x, z, dstx, dstz, dx, dz)
+		{//sourcex, sourcez, destx, destz, deltax, deltaz
+
+			if (Math.abs(dx) + Math.abs(dz) != 3 || !(dx * dz)) //checking if the absolute values are 1,2 or 2,1
+				return false;
+				
+			return true;
+		}
+
+		function QueenMove(x, z, dstx, dstz, dx, dz)
+		{//sourcex, sourcez, destx, destz, deltax, deltaz
+
+			if(!RookMove(x,z,dstx,dstz,dx,dz) && !BishopMove(x,z,dstx,dstz,dx,dz))
+				return false;
+			
+			return true;
+		}
+
+		function KingMove(x, z, dstx, dstz, dx, dz)
+		{//sourcex, sourcez, destx, destz, deltax, deltaz
+
+			if(Math.abs(dx) > 1 || Math.abs(dz) > 1)
+				return false; //moving more than 1 tile in any direction
+			
+			return true;
+		}
+
+	
+
+		//Utility stuff
+		function Team(piece)
+		{
+			if(!piece)
+				return 2;
+			if(piece.material.diffuseColor.r == 1)
+				return 0; //White
+			if(piece.material.diffuseColor.r == 0)
+				return 1; //Black
+			return 2;
+		}
+
+		function PieceForPosition(x, z)
+		{
+			var piece = null;
+			pieces.forEach(function (otherPiece, index) {
+				if(otherPiece && x == otherPiece.position.x && z == otherPiece.position.z)
+				{//there is a piece on this tile
+					piece = otherPiece;
+				}
+			});
+
+			return piece;
+		}
+
+		//shift scale from [-3.5, 3.5] to [0, 7]
+		function Shift(x)
+		{
+			return x + 3.5;
+		}
+
 
         document.getElementById("exportButton").addEventListener("click", () => {
             pieces.forEach(piece => {
@@ -146,5 +386,6 @@
             engine.resize();
         });
     </script>
+    <script src="tts.js"></script>
 </body>
 </html>
