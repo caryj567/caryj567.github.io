@@ -16,6 +16,10 @@
         var canvas = document.getElementById("renderCanvas");
         var engine = new BABYLON.Engine(canvas, true);
 
+        var tracingSphere;
+        var scalingSphere;
+        var pulsingSphere;
+
 
         const createScene = function () {
             
@@ -23,7 +27,14 @@
 
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 1.5, Math.PI / 2.2, 15, new BABYLON.Vector3(0, 0, 0));
             camera.attachControl(canvas, true);
+            //const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+            const light2 = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 1));
+            light.diffuse = new BABYLON.Color3(0.2, 0.2, 1);
+            light.specular = new BABYLON.Color3(1, 0.2, 1);
+            
+            light2.diffuse = new BABYLON.Color3(1, 0.2, 0.2);
+            light2.specular = new BABYLON.Color3(1, 0.2, 0.2);
 
             
 
@@ -47,7 +58,7 @@
             track.push(new walk(0, 47))
 
             // Dude
-            BABYLON.SceneLoader.ImportMeshAsync("him", "https://github.com/zhangsgithub04/zhangsgithub04.github.io/blob/main/babylon3/", "Dude3.babylon", scene).then((result) => {
+            BABYLON.SceneLoader.ImportMeshAsync("him", "./", "Dude3.babylon", scene).then((result) => {
                 var dude = result.meshes[0];
                 dude.scaling = new BABYLON.Vector3(0.012, 0.012, 0.012);
                     
@@ -79,6 +90,8 @@
                     
                 })
             });
+
+	
 
           BABYLON.SceneLoader.Append("./", "troll.glb", scene, function (newMeshes) {
                  newMeshes[0].scaling = new BABYLON.Vector3(0.00001, 0.00001, 0.00001);
@@ -132,6 +145,13 @@ for (var i = 0; i < 3; i++) {
     var sphere = BABYLON.MeshBuilder.CreateSphere("sphere" + i, sphereProperties, scene);
     sphere.position = positions[i];
     sphere.material = materials[i];
+
+    if(i === 1)
+    	tracingSphere = sphere;
+    if(i === 2)
+    	scalingSphere = sphere;
+    if( i===0)
+    	pulsingSphere = sphere;
 }
             
             /*
@@ -156,7 +176,7 @@ for (var i = 0; i < 3; i++) {
             );
 
             */
-                   alert("have fun & be creative");
+                   //alert("have fun & be creative");
             
             return scene;
         };
@@ -179,6 +199,65 @@ for (var i = 0; i < 3; i++) {
                 glb.downloadFiles();
             });
         }
+
+        var time_offset = 0;
+        var scaling_offset = 0;
+        var pulsing_offset = 0;
+
+		function traceCircle()
+		{
+			var x, y, z;
+			var x_ofs = Math.cos(time_offset * (Math.PI / 180));
+			var y_ofs = Math.sin(time_offset * (Math.PI / 180));
+			
+			
+			x = x_ofs;
+			y = 3 + y_ofs;
+			z = tracingSphere.position._z;
+
+			
+			
+			tracingSphere.position = new BABYLON.Vector3(x, y, z);
+			time_offset += 0.5; //move half a degree
+		}
+
+		function scaleCircle()
+		{
+			var x, y, z;
+			var x_ofs = Math.cos(scaling_offset * (Math.PI / 180));
+			var y_ofs = Math.sin(scaling_offset * (Math.PI / 180));
+						
+						
+			x = tracingSphere.position._x * 1.5 + x_ofs;
+			y = tracingSphere.position._y + 1;
+			z = tracingSphere.position._z * 1.5+ y_ofs;
+
+			scalingSphere.scaling = new BABYLON.Vector3(0.2, 0.2, 0.2);
+			
+						
+						
+			scalingSphere.position = new BABYLON.Vector3(x, y, z);
+			scaling_offset += 1;
+		}
+
+		function pulseCircle()
+		{
+			var scale = Math.cos(pulsing_offset * (Math.PI / 180));
+
+			if(scale < 0)
+				scale /= 2; //make the shrinking a little less extreme
+
+			scale += 1; //scale up from ~(-1, 1) to ~(0, 2)
+
+			pulsingSphere.scaling = new BABYLON.Vector3(scale, scale, scale)
+			
+			pulsing_offset += 1;
+		}
+
+		setInterval(traceCircle, 10);
+		setInterval(scaleCircle, 10);
+		setInterval(pulseCircle, 10);
+        
 
         // Attach export function to the download button
         document.getElementById("downloadButton").addEventListener("click", exportToGLB);
